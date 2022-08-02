@@ -43,7 +43,7 @@ class CommandRecord (object):
         self.stmt = stmt
 
     def __str__(self):
-        return "({})".format(self.stmt)
+        return f"({self.stmt})"
 
     @classmethod
     def deserialize(cls, binstr):
@@ -53,7 +53,7 @@ class CommandRecord (object):
 class CommandConsumer(object):
     def __init__(self, ksqlServiceId, conf):
         self.consumer = Consumer(conf)
-        self.topic = '_confluent-ksql-{}_command_topic'.format(ksqlServiceId)
+        self.topic = f'_confluent-ksql-{ksqlServiceId}_command_topic'
 
     def consumer_run(self):
         max_offset = -1001
@@ -90,7 +90,7 @@ class CommandConsumer(object):
                     # match statements CREATE/DROP STREAM, CREATE/DROP TABLE
                     match = re.search(r'(?:create|drop) (?:stream|table) ([a-zA-z0-9-]+?)(:?\(|AS|\s|;)', record.stmt, re.I)
                     if match:
-                        name = match.group(1).upper()
+                        name = match[1].upper()
                         if name == "KSQL_PROCESSING_LOG":
                             continue
                         if name not in stmts:
@@ -100,19 +100,19 @@ class CommandConsumer(object):
                     # match statements TERMINATE query
                     match2 = re.search(r'(?:terminate) (?:ctas|csas)_(.+?)_', record.stmt, re.I)
                     if match2:
-                        name = match2.group(1).upper()
+                        name = match2[1].upper()
                         stmts[name].append(record.stmt)
 
                     # match statements INSERT INTO stream or table
                     match3 = re.search(r'(?:insert into) ([a-zA-z0-9-]+?)(:?\(|\s|\()', record.stmt, re.I)
                     if match3:
-                        name = match3.group(1).upper()
+                        name = match3[1].upper()
                         stmts[name].append(record.stmt)
 
                     #match statements CREATE TYPE
                     match4 = re.search(r'(?:create|drop) type ([a-zA-z0-9-]+?)(:?AS|\s|;)', record.stmt, re.I)
                     if match4:
-                        name = match4.group(1).upper()
+                        name = match4[1].upper()
                         if name not in stmts:
                             stmts[name] = []
                         stmts[name].append(record.stmt)
@@ -166,7 +166,7 @@ if __name__ == '__main__':
     if args.debug:
         logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-    conf = dict()
+    conf = {}
     if args.confFile is not None:
         # Parse client configuration file
         for line in args.confFile:
@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
             i = line.find('=')
             if i <= 0:
-                raise ValueError("Configuration lines must be `name=value..`, not {}".format(line))
+                raise ValueError(f"Configuration lines must be `name=value..`, not {line}")
 
             name = line[:i]
             value = line[i+1:]
@@ -197,7 +197,7 @@ if __name__ == '__main__':
     conf['enable.auto.commit']= 'False'
     conf['client.id'] = 'commandClient'
     # Generate a unique group.id
-    conf['group.id'] = 'commandTopicConsumer.py-{}'.format(uuid.uuid4())
+    conf['group.id'] = f'commandTopicConsumer.py-{uuid.uuid4()}'
 
     c = CommandConsumer(args.ksqlServiceId, conf)
     c.consumer_run()

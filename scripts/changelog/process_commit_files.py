@@ -15,9 +15,9 @@ COMMIT_TYPE_ORDER = ['Features', 'Performance Improvements', 'Bug Fixes']
 VERBOSE = False
 def log_info(msg):
 	if VERBOSE:
-		print('INFO: ' + msg)
+		print(f'INFO: {msg}')
 def log_warn(msg):
-	print('WARN: ' + msg)
+	print(f'WARN: {msg}')
 
 ##################
 ###### READ ######
@@ -39,7 +39,7 @@ def parse_changelog(filename, release=None):
 									Note that the commit type is the final line that will be written, e.g., "### Features" rather 
 									than simply "Features"
 	'''
-	log_info('parsing changelog file %s' % filename)
+	log_info(f'parsing changelog file {filename}')
 	return _reformat_and_remove_duplicates(_parse_changelog_with_duplicates(filename, release))
 
 def _parse_changelog_with_duplicates(filename, release=None):
@@ -58,7 +58,7 @@ def _parse_changelog_with_duplicates(filename, release=None):
 									than simply "Features"
 	'''
 	with open(filename, 'r') as f:
-		found_header = True if release is None else False
+		found_header = release is None
 		fork_name = None
 		current_type = None
 		commits = defaultdict(list)
@@ -104,10 +104,10 @@ def _parse_changelog_with_duplicates(filename, release=None):
 		return commits
 
 def _is_header(line):
-	return line[0] == '#' and line[0:3] != '###'
+	return line[0] == '#' and line[:3] != '###'
 
 def _is_commit_type(line):
-	return line[0:3] == '###'
+	return line[:3] == '###'
 
 def _is_commit(line):
 	return line[0] == '*'
@@ -191,13 +191,17 @@ def _process_commit_line(fork_name, line, is_first, is_breaking_change):
 	line = line.replace(fork_name, CONFLUENT_USERNAME)
 
 	if is_first and not is_breaking_change:
-		## update pull request link to correctly link to pull request rather than issue
-		spans = [m.span() for m in re.finditer('\(\[#[0-9]+\]\(https://github.com/confluentinc/ksql/issues/[0-9]+\)\)', line)]
-		if len(spans) > 0:
+		if spans := [
+			m.span()
+			for m in re.finditer(
+				'\(\[#[0-9]+\]\(https://github.com/confluentinc/ksql/issues/[0-9]+\)\)',
+				line,
+			)
+		]:
 			span = spans[0]
 
 			start_i = span[0] + line[span[0]:span[1]].index('issues')
-			line = line[:start_i] + 'pull' + line[start_i + len('issues'):]
+			line = f'{line[:start_i]}pull' + line[start_i + len('issues'):]
 		else:
 			log_info('first line of commit message does not include pull request link. line:\n%s\n' % line)
 
@@ -249,9 +253,9 @@ def _get_diff_commits(all_commits, old_commits):
 	## iterate rather than using set logic in order to preserve order
 	new_commits = [commit for k, commit in all_commits.items() if k not in old_commits]
 
-	## sanity check that all_commits is a superset of old_commits
-	missing_commits = [commit for k, commit in old_commits.items() if k not in all_commits]
-	if len(missing_commits) > 0:
+	if missing_commits := [
+		commit for k, commit in old_commits.items() if k not in all_commits
+	]:
 		msg = 'commits present in old commits file but not new commits file\n'
 		for commit in missing_commits:
 			msg += "\t" + commit + "\n"
@@ -310,10 +314,7 @@ def _find_commit_type(commit_type, commits_by_type):
 			Returns:
 					full_commit_type (str): key in <commits_by_type> corresponding to commit_type, if found; else, None.
 	'''
-	for ct in commits_by_type:
-		if commit_type in ct:
-			return ct
-	return None
+	return next((ct for ct in commits_by_type if commit_type in ct), None)
 
 def _generate_header(release):
 	'''
@@ -326,8 +327,7 @@ def _generate_header(release):
 					header (str): header for output changelog. ex: "## [0.8.1](https://github.com/confluentinc/ksql/releases/tag/v0.8.1-ksqldb) (2020-03-30)"
 	'''
 	date = datetime.datetime.now().strftime("%Y-%m-%d")
-	header = "## [%s](https://github.com/%s/ksql/releases/tag/v%s-ksqldb) (%s)" % (release, CONFLUENT_USERNAME, release, date)
-	return header
+	return f"## [{release}](https://github.com/{CONFLUENT_USERNAME}/ksql/releases/tag/v{release}-ksqldb) ({date})"
 
 ##################
 ### PARSE ARGS ###
